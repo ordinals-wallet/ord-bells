@@ -278,54 +278,54 @@ impl Updater {
     // else runs a request, we keep this to 12.
     const PARALLEL_REQUESTS: usize = 12;
 
-    std::thread::spawn(move || {
-      //let rt = tokio::runtime::Builder::new_multi_thread()
-      //.enable_all()
-      //.build()
-      //.unwrap();
+    //std::thread::spawn(move || {
+    //let rt = tokio::runtime::Builder::new_multi_thread()
+    //.enable_all()
+    //.build()
+    //.unwrap();
+    //});
 
-      tokio::spawn(async move {
-        loop {
-          let Some(outpoint) = outpoint_receiver.recv().await else {
-            log::debug!("Outpoint channel closed");
+    tokio::spawn(async move {
+      loop {
+        let Some(outpoint) = outpoint_receiver.recv().await else {
+          log::debug!("Outpoint channel closed");
+          return;
+        };
+        // There's no try_iter on tokio::sync::mpsc::Receiver like std::sync::mpsc::Receiver.
+        // So we just loop until BATCH_SIZE doing try_recv until it returns None.
+        let mut outpoints = vec![outpoint];
+        for _ in 0..BATCH_SIZE - 1 {
+          let Ok(outpoint) = outpoint_receiver.try_recv() else {
+            break;
+          };
+          outpoints.push(outpoint);
+        }
+        // Break outpoints into chunks for parallel requests
+        let chunk_size = (outpoints.len() / PARALLEL_REQUESTS) + 1;
+        let mut futs = Vec::with_capacity(PARALLEL_REQUESTS);
+        for chunk in outpoints.chunks(chunk_size) {
+          let txids = chunk.iter().map(|outpoint| outpoint.txid).collect();
+          let fut = fetcher.get_transactions(txids);
+          futs.push(fut);
+        }
+        let txs = match try_join_all(futs).await {
+          Ok(txs) => txs,
+          Err(e) => {
+            log::error!("Couldn't receive txs {e}");
+            return;
+          }
+        };
+        // Send all tx output values back in order
+        for (i, tx) in txs.iter().flatten().enumerate() {
+          let Ok(_) = value_sender
+            .send(tx.output[usize::try_from(outpoints[i].vout).unwrap()].value)
+            .await
+          else {
+            log::error!("Value channel closed unexpectedly");
             return;
           };
-          // There's no try_iter on tokio::sync::mpsc::Receiver like std::sync::mpsc::Receiver.
-          // So we just loop until BATCH_SIZE doing try_recv until it returns None.
-          let mut outpoints = vec![outpoint];
-          for _ in 0..BATCH_SIZE - 1 {
-            let Ok(outpoint) = outpoint_receiver.try_recv() else {
-              break;
-            };
-            outpoints.push(outpoint);
-          }
-          // Break outpoints into chunks for parallel requests
-          let chunk_size = (outpoints.len() / PARALLEL_REQUESTS) + 1;
-          let mut futs = Vec::with_capacity(PARALLEL_REQUESTS);
-          for chunk in outpoints.chunks(chunk_size) {
-            let txids = chunk.iter().map(|outpoint| outpoint.txid).collect();
-            let fut = fetcher.get_transactions(txids);
-            futs.push(fut);
-          }
-          let txs = match try_join_all(futs).await {
-            Ok(txs) => txs,
-            Err(e) => {
-              log::error!("Couldn't receive txs {e}");
-              return;
-            }
-          };
-          // Send all tx output values back in order
-          for (i, tx) in txs.iter().flatten().enumerate() {
-            let Ok(_) = value_sender
-              .send(tx.output[usize::try_from(outpoints[i].vout).unwrap()].value)
-              .await
-            else {
-              log::error!("Value channel closed unexpectedly");
-              return;
-            };
-          }
         }
-      })
+      }
     });
 
     Ok((outpoint_sender, value_receiver))
