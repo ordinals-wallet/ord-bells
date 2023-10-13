@@ -49,7 +49,7 @@ define_table! { SAT_TO_SATPOINT, u128, &SatPointValue }
 define_table! { STATISTIC_TO_COUNT, u64, u64 }
 define_table! { WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP, u64, u128 }
 
-pub(crate) struct Index {
+pub struct Index {
   auth: Auth,
   client: Client,
   database: Database,
@@ -138,7 +138,7 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
 }
 
 impl Index {
-  pub(crate) fn open(options: &Options) -> Result<Self> {
+  pub fn open(options: &Options) -> Result<Self> {
     let rpc_url = options.rpc_url();
     let cookie_file = options.cookie_file()?;
 
@@ -378,7 +378,7 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn update(&self) -> Result {
+  pub fn update(&self) -> Result {
     Updater::update(self)
   }
 
@@ -490,7 +490,7 @@ impl Index {
     self.client.get_block_header_info(&hash).into_option()
   }
 
-  pub(crate) fn get_block_by_height(&self, height: u64) -> Result<Option<Block>> {
+  pub fn get_block_by_height(&self, height: u64) -> Result<Option<Block>> {
     let tx = self.database.begin_read()?;
 
     let indexed = tx.open_table(HEIGHT_TO_BLOCK_HASH)?.get(&height)?.is_some();
@@ -537,10 +537,7 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_inscription_id_by_inscription_number(
-    &self,
-    n: u64,
-  ) -> Result<Option<InscriptionId>> {
+  pub fn get_inscription_id_by_inscription_number(&self, n: u64) -> Result<Option<InscriptionId>> {
     Ok(
       self
         .database
@@ -551,7 +548,7 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_inscription_satpoint_by_id(
+  pub fn get_inscription_satpoint_by_id(
     &self,
     inscription_id: InscriptionId,
   ) -> Result<Option<SatPoint>> {
@@ -565,7 +562,7 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_inscription_by_id(
+  pub fn get_inscription_by_id(
     &self,
     inscription_id: InscriptionId,
   ) -> Result<Option<Inscription>> {
@@ -858,7 +855,7 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_inscription_entry(
+  pub fn get_inscription_entry(
     &self,
     inscription_id: InscriptionId,
   ) -> Result<Option<InscriptionEntry>> {
@@ -1629,40 +1626,40 @@ mod tests {
   }
 
   #[test]
-    fn two_input_fee_spent_inscriptions_are_tracked_correctly() {
-      for context in Context::configurations() {
-        context.mine_blocks(2);
+  fn two_input_fee_spent_inscriptions_are_tracked_correctly() {
+    for context in Context::configurations() {
+      context.mine_blocks(2);
 
-        let txid = context.rpc_server.broadcast_tx(TransactionTemplate {
-          inputs: &[(1, 0, 0)],
-          witness: inscription("text/plain", "hello").to_witness(),
-          ..Default::default()
-        });
-        let inscription_id = InscriptionId::from(txid);
+      let txid = context.rpc_server.broadcast_tx(TransactionTemplate {
+        inputs: &[(1, 0, 0)],
+        witness: inscription("text/plain", "hello").to_witness(),
+        ..Default::default()
+      });
+      let inscription_id = InscriptionId::from(txid);
 
-        context.mine_blocks(1);
+      context.mine_blocks(1);
 
-        context.rpc_server.broadcast_tx(TransactionTemplate {
-          inputs: &[(2, 0, 0), (3, 1, 0)],
-          fee: 50 * COIN_VALUE,
-          ..Default::default()
-        });
+      context.rpc_server.broadcast_tx(TransactionTemplate {
+        inputs: &[(2, 0, 0), (3, 1, 0)],
+        fee: 50 * COIN_VALUE,
+        ..Default::default()
+      });
 
-        let coinbase_tx = context.mine_blocks(1)[0].txdata[0].txid();
+      let coinbase_tx = context.mine_blocks(1)[0].txdata[0].txid();
 
-        context.index.assert_inscription_location(
-          inscription_id,
-          SatPoint {
-            outpoint: OutPoint {
-              txid: coinbase_tx,
-              vout: 0,
-            },
-            offset: 50 * COIN_VALUE,
+      context.index.assert_inscription_location(
+        inscription_id,
+        SatPoint {
+          outpoint: OutPoint {
+            txid: coinbase_tx,
+            vout: 0,
           },
-          50 * COIN_VALUE,
-        );
-      }
+          offset: 50 * COIN_VALUE,
+        },
+        50 * COIN_VALUE,
+      );
     }
+  }
 
   #[test]
   #[ignore]

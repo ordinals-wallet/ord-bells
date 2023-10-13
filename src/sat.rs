@@ -5,11 +5,15 @@ use super::*;
 pub struct Sat(pub u128);
 
 impl Sat {
-  pub(crate) fn n(self) -> u128 {
+  pub fn n(self) -> u128 {
     self.0
   }
 
-  pub(crate) fn height(self) -> Height {
+  pub fn n64(self) -> u64 {
+    self.0 as u64
+  }
+
+  pub fn height(self) -> Height {
     self.epoch().starting_height()
       + u64::try_from(self.epoch_position() / self.epoch().subsidy() as u128).unwrap()
   }
@@ -18,11 +22,11 @@ impl Sat {
     self.into()
   }
 
-  pub(crate) fn third(self) -> u64 {
+  pub fn third(self) -> u64 {
     u64::try_from(self.epoch_position() % self.epoch().subsidy() as u128).unwrap()
   }
 
-  pub(crate) fn epoch_position(self) -> u128 {
+  pub fn epoch_position(self) -> u128 {
     self.0 - self.epoch().starting_sat().0
   }
 
@@ -30,11 +34,11 @@ impl Sat {
     self.into()
   }
 
-  pub(crate) fn rarity(self) -> Rarity {
+  pub fn rarity(self) -> Rarity {
     self.into()
   }
 
-  pub(crate) fn is_common(self) -> bool {
+  pub fn is_common(self) -> bool {
     let epoch = self.epoch();
     (self.0 - epoch.starting_sat().0) % epoch.subsidy() as u128 != 0
   }

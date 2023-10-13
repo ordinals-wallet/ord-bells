@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Deserialize, Default, PartialEq, Debug)]
-pub(crate) struct Config {
+pub struct Config {
   pub(crate) hidden: HashSet<InscriptionId>,
 }
 

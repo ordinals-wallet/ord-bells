@@ -22,12 +22,12 @@ impl Entry for BlockHash {
   }
 }
 
-pub(crate) struct InscriptionEntry {
-  pub(crate) fee: u64,
-  pub(crate) height: u64,
-  pub(crate) number: u64,
-  pub(crate) sat: Option<Sat>,
-  pub(crate) timestamp: u32,
+pub struct InscriptionEntry {
+  pub fee: u64,
+  pub height: u64,
+  pub number: u64,
+  pub sat: Option<Sat>,
+  pub timestamp: u32,
 }
 
 pub(crate) type InscriptionEntryValue = (u64, u64, u64, u128, u32);

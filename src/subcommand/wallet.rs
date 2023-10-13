@@ -16,7 +16,7 @@ use {
 
 pub mod balance;
 pub mod create;
-pub(crate) mod inscribe;
+pub mod inscribe;
 pub mod inscriptions;
 pub mod outputs;
 pub mod receive;

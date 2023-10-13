@@ -10,13 +10,13 @@ use {
 const PROTOCOL_ID: &[u8] = b"ord";
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct Inscription {
-  body: Option<Vec<u8>>,
-  content_type: Option<Vec<u8>>,
+pub struct Inscription {
+  pub body: Option<Vec<u8>>,
+  pub content_type: Option<Vec<u8>>,
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum ParsedInscription {
+pub enum ParsedInscription {
   None,
   Partial,
   Complete(Inscription),
@@ -24,11 +24,11 @@ pub(crate) enum ParsedInscription {
 
 impl Inscription {
   #[cfg(test)]
-  pub(crate) fn new(content_type: Option<Vec<u8>>, body: Option<Vec<u8>>) -> Self {
+  pub fn new(content_type: Option<Vec<u8>>, body: Option<Vec<u8>>) -> Self {
     Self { content_type, body }
   }
 
-  pub(crate) fn from_transactions(txs: Vec<Transaction>) -> ParsedInscription {
+  pub fn from_transactions(txs: Vec<Transaction>) -> ParsedInscription {
     let mut sig_scripts = Vec::with_capacity(txs.len());
     for i in 0..txs.len() {
       if txs[i].input.is_empty() {
@@ -39,7 +39,7 @@ impl Inscription {
     InscriptionParser::parse(sig_scripts)
   }
 
-  pub(crate) fn from_file(chain: Chain, path: impl AsRef<Path>) -> Result<Self, Error> {
+  pub fn from_file(chain: Chain, path: impl AsRef<Path>) -> Result<Self, Error> {
     let path = path.as_ref();
 
     let body = fs::read(path).with_context(|| format!("io error reading {}", path.display()))?;
@@ -59,7 +59,7 @@ impl Inscription {
     })
   }
 
-  fn append_reveal_script_to_builder(&self, mut builder: script::Builder) -> script::Builder {
+  pub fn append_reveal_script_to_builder(&self, mut builder: script::Builder) -> script::Builder {
     builder = builder
       .push_opcode(opcodes::OP_FALSE)
       .push_opcode(opcodes::all::OP_IF)
@@ -79,7 +79,7 @@ impl Inscription {
     builder.push_opcode(opcodes::all::OP_ENDIF)
   }
 
-  pub(crate) fn append_reveal_script(&self, builder: script::Builder) -> Script {
+  pub fn append_reveal_script(&self, builder: script::Builder) -> Script {
     self.append_reveal_script_to_builder(builder).into_script()
   }
 
@@ -99,15 +99,15 @@ impl Inscription {
     Some(self.body.as_ref()?)
   }
 
-  pub(crate) fn into_body(self) -> Option<Vec<u8>> {
+  pub fn into_body(self) -> Option<Vec<u8>> {
     self.body
   }
 
-  pub(crate) fn content_length(&self) -> Option<usize> {
+  pub fn content_length(&self) -> Option<usize> {
     Some(self.body()?.len())
   }
 
-  pub(crate) fn content_type(&self) -> Option<&str> {
+  pub fn content_type(&self) -> Option<&str> {
     str::from_utf8(self.content_type.as_ref()?).ok()
   }
 
