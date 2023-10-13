@@ -279,11 +279,12 @@ impl Updater {
     const PARALLEL_REQUESTS: usize = 12;
 
     std::thread::spawn(move || {
-      let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-      rt.block_on(async move {
+      //let rt = tokio::runtime::Builder::new_multi_thread()
+      //.enable_all()
+      //.build()
+      //.unwrap();
+
+      tokio::spawn(async move {
         loop {
           let Some(outpoint) = outpoint_receiver.recv().await else {
             log::debug!("Outpoint channel closed");
@@ -292,7 +293,7 @@ impl Updater {
           // There's no try_iter on tokio::sync::mpsc::Receiver like std::sync::mpsc::Receiver.
           // So we just loop until BATCH_SIZE doing try_recv until it returns None.
           let mut outpoints = vec![outpoint];
-          for _ in 0..BATCH_SIZE-1 {
+          for _ in 0..BATCH_SIZE - 1 {
             let Ok(outpoint) = outpoint_receiver.try_recv() else {
               break;
             };
@@ -315,7 +316,10 @@ impl Updater {
           };
           // Send all tx output values back in order
           for (i, tx) in txs.iter().flatten().enumerate() {
-            let Ok(_) = value_sender.send(tx.output[usize::try_from(outpoints[i].vout).unwrap()].value).await else {
+            let Ok(_) = value_sender
+              .send(tx.output[usize::try_from(outpoints[i].vout).unwrap()].value)
+              .await
+            else {
               log::error!("Value channel closed unexpectedly");
               return;
             };
@@ -339,7 +343,7 @@ impl Updater {
     // If value_receiver still has values something went wrong with the last block
     // Could be an assert, shouldn't recover from this and commit the last block
     let Err(TryRecvError::Empty) = value_receiver.try_recv() else {
-      return Err(anyhow!("Previous block did not consume all input values")); 
+      return Err(anyhow!("Previous block did not consume all input values"));
     };
 
     let mut outpoint_to_value = wtx.open_table(OUTPOINT_TO_VALUE)?;
