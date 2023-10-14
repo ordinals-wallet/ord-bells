@@ -108,7 +108,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         {
           value.value()
         } else {
-          self.value_receiver.blocking_recv().ok_or_else(|| {
+          tokio::task::block_in_place(|| self.value_receiver.blocking_recv()).ok_or_else(|| {
             anyhow!(
               "failed to get transaction for {}",
               tx_in.previous_output.txid
@@ -195,7 +195,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
           let og_inscription_id = InscriptionId {
             txid: Txid::from_slice(&txids_vec[0..32]).unwrap(),
-            index: 0
+            index: 0,
           };
 
           inscriptions.push(Flotsam {

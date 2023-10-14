@@ -379,7 +379,8 @@ impl Updater {
             continue;
           }
           // We don't know the value of this tx input. Send this outpoint to background thread to be fetched
-          outpoint_sender.blocking_send(prev_output)?;
+
+          tokio::task::block_in_place(|| outpoint_sender.blocking_send(prev_output))?;
         }
       }
     }
