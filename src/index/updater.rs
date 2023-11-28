@@ -37,6 +37,7 @@ pub(crate) struct Updater {
   outputs_cached: u64,
   outputs_inserted_since_flush: u64,
   outputs_traversed: u64,
+  slow_mode_block_count: u64,
 }
 
 impl Updater {
@@ -69,6 +70,7 @@ impl Updater {
       outputs_cached: 0,
       outputs_inserted_since_flush: 0,
       outputs_traversed: 0,
+      slow_mode_block_count: index.slow_mode_block_count,
     };
 
     updater.update_index(index, wtx)
@@ -79,7 +81,7 @@ impl Updater {
     index: &'index Index,
     mut wtx: WriteTransaction<'index>,
   ) -> Result {
-    let starting_height = index.client.get_block_count()? + 1;
+    let starting_height = index.client.get_block_count()? + 1 - self.slow_mode_block_count;
 
     let mut progress_bar = if cfg!(test)
       || log_enabled!(log::Level::Info)
@@ -122,7 +124,7 @@ impl Updater {
 
         if progress_bar.position() > progress_bar.length().unwrap() {
           if let Ok(count) = index.client.get_block_count() {
-            progress_bar.set_length(count + 1);
+            progress_bar.set_length(count + 1 - self.slow_mode_block_count);
           } else {
             log::warn!("Failed to fetch latest block height");
           }

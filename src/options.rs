@@ -45,6 +45,7 @@ pub struct Options {
   pub testnet: bool,
   #[clap(long, default_value = "ord", help = "Use wallet named <WALLET>.")]
   pub wallet: String,
+  pub slow_mode_block_count: Option<u64>,
 }
 
 impl Options {

@@ -60,6 +60,7 @@ pub struct Index {
   height_limit: Option<u64>,
   reorged: AtomicBool,
   rpc_url: String,
+  slow_mode_block_count: u64,
 }
 
 #[derive(Debug, PartialEq)]
@@ -250,6 +251,10 @@ impl Index {
       height_limit: options.height_limit,
       reorged: AtomicBool::new(false),
       rpc_url,
+      slow_mode_block_count: match options.slow_mode_block_count {
+        Some(v) => v,
+        None => 0,
+      },
     })
   }
 
