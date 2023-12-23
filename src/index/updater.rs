@@ -38,6 +38,7 @@ pub(crate) struct Updater {
   outputs_inserted_since_flush: u64,
   outputs_traversed: u64,
   slow_mode_block_count: u64,
+  height_limit: u64,
 }
 
 impl Updater {
@@ -71,6 +72,7 @@ impl Updater {
       outputs_inserted_since_flush: 0,
       outputs_traversed: 0,
       slow_mode_block_count: index.slow_mode_block_count,
+      height_limit: 0,
     };
 
     updater.update_index(index, wtx)
@@ -82,6 +84,12 @@ impl Updater {
     mut wtx: WriteTransaction<'index>,
   ) -> Result {
     let starting_height = index.client.get_block_count()? + 1 - self.slow_mode_block_count;
+    self.height_limit = starting_height;
+
+    log::info!(
+      "UPDATER starting_height: {starting_height} height: {}",
+      self.height
+    );
 
     let mut progress_bar = if cfg!(test)
       || log_enabled!(log::Level::Info)
@@ -98,7 +106,7 @@ impl Updater {
       Some(progress_bar)
     };
 
-    let rx = Self::fetch_blocks_from(index, self.height, self.index_sats)?;
+    let rx = Self::fetch_blocks_from(index, self.height, self.index_sats, self.height_limit)?;
 
     let (mut outpoint_sender, mut value_receiver) = Self::spawn_fetcher(index)?;
 
@@ -181,10 +189,10 @@ impl Updater {
     index: &Index,
     mut height: u64,
     index_sats: bool,
+    height_limit: u64,
   ) -> Result<mpsc::Receiver<BlockData>> {
     let (tx, rx) = mpsc::sync_channel(32);
-
-    let height_limit = index.height_limit;
+    let height_limit = height_limit;
 
     let client =
       Client::new(&index.rpc_url, index.auth.clone()).context("failed to connect to RPC URL")?;
@@ -192,10 +200,8 @@ impl Updater {
     let first_inscription_height = index.first_inscription_height;
 
     thread::spawn(move || loop {
-      if let Some(height_limit) = height_limit {
-        if height >= height_limit {
-          break;
-        }
+      if height >= height_limit {
+        break;
       }
 
       match Self::get_block_with_retries(&client, height, index_sats, first_inscription_height) {
@@ -225,6 +231,7 @@ impl Updater {
   ) -> Result<Option<Block>> {
     let mut errors = 0;
     loop {
+      println!("RPC: get_block_hash");
       match client
         .get_block_hash(height)
         .into_option()
@@ -232,8 +239,10 @@ impl Updater {
           option
             .map(|hash| {
               if index_sats || height >= first_inscription_height {
+                println!("RPC: get_block");
                 Ok(client.get_block(&hash)?)
               } else {
+                println!("RPC: get_block_header");
                 Ok(Block {
                   header: client.get_block_header(&hash)?,
                   txdata: Vec::new(),
