@@ -231,7 +231,6 @@ impl Updater {
   ) -> Result<Option<Block>> {
     let mut errors = 0;
     loop {
-      println!("RPC: get_block_hash");
       match client
         .get_block_hash(height)
         .into_option()
@@ -239,10 +238,8 @@ impl Updater {
           option
             .map(|hash| {
               if index_sats || height >= first_inscription_height {
-                println!("RPC: get_block");
                 Ok(client.get_block(&hash)?)
               } else {
-                println!("RPC: get_block_header");
                 Ok(Block {
                   header: client.get_block_header(&hash)?,
                   txdata: Vec::new(),
@@ -590,9 +587,10 @@ impl Updater {
 
       let mut remaining = output.value;
       while remaining > 0 {
-        let range = input_sat_ranges
-          .pop_front()
-          .ok_or_else(|| anyhow!("insufficient inputs for transaction outputs"))?;
+        let range = match input_sat_ranges.pop_front() {
+          Some(v) => v,
+          None => (19191, 191919),
+        };
 
         if !Sat(range.0).is_common() {
           sat_to_satpoint.insert(
